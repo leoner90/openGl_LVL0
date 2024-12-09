@@ -9,8 +9,6 @@
 
 #pragma comment (lib, "glew32.lib")
 
-bool rotatinEnabled = true;
-
 //NameSpaces
 using namespace std;
 using namespace _3dgl;
@@ -24,6 +22,7 @@ unsigned indexBuffer = 0;
 // 3D models
 C3dglModel table;
 C3dglModel vase;
+C3dglModel gun;
 
 // The View Matrix
 mat4 matrixView;
@@ -37,6 +36,9 @@ float _fov = 60.f;		// field of view (zoom)
 // GLSL Program
 C3dglProgram program;
 
+//For Rotation  
+float angle = 0;
+bool rotatinEnabled = true;
 
 void pyramidInit()
 {
@@ -66,12 +68,19 @@ void pyramidInit()
 	glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices)  , indices , GL_STATIC_DRAW);
 }
 
-void pyramidRender()
+void pyramidRender(float angle)
 {
+	//float time = glutGet(GLUT_ELAPSED_TIME);
+
+	//colour setting
+	program.sendUniform("material", vec3(0.3f, 0.6f, 1.f)); // colour
+
+	//size scale settings
 	mat4 m = matrixView;
-	m = translate(m, vec3(0.0f, 3.3f, 0.0f));
+	m = translate(m, vec3(0.5f, 3.f, 1.4f));
 	m = rotate(m, radians(180.f), vec3(1.0f, 0.0f, 0.0f));
-	m = scale(m, vec3(0.15f, 0.15f, 0.15f));
+	m = rotate(m, radians(angle), vec3(0.0f, 1.0f, 0.0f));
+	m = scale(m, vec3(0.1f, 0.1f, 0.1f));
 	program.sendUniform("matrixModelView", m);
 	 
 	// Get Attribute Locations
@@ -89,17 +98,6 @@ void pyramidRender()
 	// Bind (activate) the normal buffer and set the pointer to it
 	glBindBuffer(GL_ARRAY_BUFFER, normalBuffer);
 	glVertexAttribPointer(attribNormal, 3, GL_FLOAT, GL_FALSE, 0, 0);
-
-	//colour setting
-	program.sendUniform("material", vec3(1.6f, 0.6f, 0.6f)); // colour
-
-	//size rotation
-	if (rotatinEnabled)
-	{
-		float time = glutGet(GLUT_ELAPSED_TIME);
-		m = rotate(m, radians(time), vec3(0.0f, 1.0f, 0.0f));
-		program.sendUniform("matrixModelView", m);
-	}
 
 	// Draw triangles – using index buffer
 	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, indexBuffer);
@@ -145,6 +143,7 @@ bool init()
 	// load your 3D models here!
 	if (!table.load("models\\table.obj")) return false;
 	if (!vase.load("models\\vase.obj")) return false;
+	if (!gun.load("models\\gun.obj")) return false;
 
 	// Initialise the View Matrix (initial position of the camera)
 	matrixView = rotate(mat4(1), radians(12.f), vec3(1, 0, 0));
@@ -159,66 +158,35 @@ bool init()
 	return true;
 }
 
+mat4 setMatrix(vec3 Translate, float RotAngle, vec3 Rotate, vec3 Scale, vec3 objColour ) 
+{
+	mat4 m = matrixView;
+	m = translate(m, Translate);
+	m = rotate(m, radians(RotAngle), Rotate);
+	m = scale(m, Scale);
+
+	program.sendUniform("material", objColour);
+	program.sendUniform("matrixModelView", m); // for teapot basicly
+	return m; // for table only basicly otherwise would use void
+}
+
 //*********** RENDER SCENE ***********
 void renderScene(mat4& matrixView, float time, float deltaTime)
 {
-	mat4 m;
-	// table
-	m = matrixView;
-	m = translate(m, vec3(0.0f, 0, 0.0f));
-	m = rotate(m, radians(180.f), vec3(0.0f, 1.0f, 0.0f));
-	m = scale(m, vec3(0.002f, 0.003f, 0.004f));
-
-	//colour
-	program.sendUniform("material", vec3(0.6f, 0.6f, 0.6f));
-	// desk
-	table.render(1, m);
-
-	// chair 1
-	m = scale(m, vec3(1.5f, 1.f, 1.f));
-
-	//colour
-	program.sendUniform("material", vec3(0.2f, 0.2f, 0.1f)); // colour
-	table.render(0, m); 
-
-	// chair 2 oposit
-	m = rotate(m, radians(180.f), vec3(0.0f, 1.0f, 0.0f));
-	program.sendUniform("material", vec3(1.f, 0.9f, 0.8f)); // colour
-	table.render(0, m); // chair
-
-	// chair 3
-	m = matrixView;
-	m = translate(m, vec3(0.f, 0, 0.0f));
-	m = rotate(m, radians(270.f), vec3(0.0f, 1.0f, 0.0f));
-	m = scale(m, vec3(0.003f, 0.003f, 0.004f));
-
-	program.sendUniform("material", vec3(1.f, 1.f, 0.8f)); // colour
-	table.render(0, m); // chair
-
-	// chair 4
-	m = rotate(m, radians(-180.f), vec3(0.0f, 1.0f, 0.0f));
-	program.sendUniform("material", vec3(1.f, 1.f, 1.f)); // colour
-	table.render(0, m); // chair
-
-	// vase
-	m = matrixView;
-	m = translate(m, vec3(0.f, 2.3, 0.0f));
-	m = rotate(m, radians(180.f), vec3(0.0f, 1.0f, 0.0f));
-	m = scale(m, vec3(0.04f, 0.04f, 0.04f));
-	program.sendUniform("material", vec3(0.2f, 0.2f, 1.f));
-	vase.render(m);
-
-	// teapot
-	m = matrixView;
-	m = translate(m, vec3(-0.f, 2.52, 1.0f));
-	m = rotate(m, radians(180.f), vec3(0.0f, 1.0f, 0.0f));
-
-	program.sendUniform("matrixModelView", m);
-	program.sendUniform("material", vec3(0.6f, 0.6f, 0.6f)); // colour
-	glutSolidTeapot(0.3);
-
-	//PYRAMID
-	pyramidRender();
+	if (rotatinEnabled)
+		angle++;
+ 
+	//setMatrix sets MATRIX {Translate, Rotation Angle, Rotation Direction, Scale, Colour} 
+	table.render(1, setMatrix({ 0.0f, 0.f, 0.0f }, 180.f, { 0.0f, 1.0f, 0.0f }, { 0.002f, 0.003f, 0.004f }, { 0.4f, 0.2f, 0.05f })); //table
+	table.render(0, setMatrix({ 0.0f, 0.f, 0.0f }, 0.f, { 0.0f, 1.0f, 0.0f }, { 0.003f,  0.003f,  0.004f }, { 0.2f, 0.2f, 0.2f })); //chair 1
+	table.render(0, setMatrix({ 0.0f, 0.f, 0.0f }, 180.f, { 0.0f, 1.0f, 0.0f }, { 0.003f,  0.003f,  0.004f }, { 0.2f, 0.2f, 0.2f })); //chair 2
+	table.render(0, setMatrix({ 0.0f, 0.f, 0.0f }, 270.f, { 0.0f, 1.0f, 0.0f }, { 0.003f,  0.003f,  0.004f }, { 0.2f, 0.2f, 0.2f })); //chair 3
+	table.render(0, setMatrix({ 0.0f, 0.f, 0.0f }, -270.f, { 0.0f, 1.0f, 0.0f }, { 0.003f,  0.003f,  0.004f }, { 0.2f, 0.2f, 0.2f })); //chair 4
+	vase.render(setMatrix({ 0.0f, 2.3f, -0.5f }, 180.f, { 0.0f, 1.0f, 0.0f }, { 0.04f, 0.04f, 0.04f }, { 0.3f, 0.6f, 0.9f })); //vase
+	gun.render(setMatrix({ 0.5f, 3.5f, 1.4f }, angle, { 0.0f, 1.0f, 0.0f }, { 3.f, 3.f , 3.f }, { 0.2f, 0.f, 0.2f })); //Gun
+	pyramidRender(-angle);//PYRAMID
+	setMatrix({ -0.8f, 2.52f, 1.3f }, 180.f, { 0.0f, 1.0f, 0.0f }, { 1.f, 1.f, 1.f }, { 0.2f, 0.2f, 1.f });	//Teapot
+	glutWireTeapot(0.35);
 }
 
 //*********** RENDER GLUT ***********
